@@ -17,10 +17,12 @@ Types of changes:
 ## [Unreleased]
 
 ## [4.0.0] - 2022-07-17
+
 ## Added
+
 - **New Feature - schema usage**
   - New DB migration adds `clients`, `clients_persisted_queries_rel` and `schema_hit` tables
-  - Async workrer which analyzes graphql queries and maps them onto schemas to generate schema hits (usage), see `src/worker` and also `examples` for more details. As this requires manual setup, released as major version. 
+  - Async workrer which analyzes graphql queries and maps them onto schemas to generate schema hits (usage), see `src/worker` and also `examples` for more details. As this requires manual setup, released as major version.
   - graphql schemas & resolvers to provide schema usage
   - UI to see schema usage tab (under specific service schema)
     - Added rumble-charts dependency to draw graphs
@@ -29,8 +31,8 @@ Types of changes:
 - Tooling
   - added integration tests, mostly useful for worker testing as its async
 
-
 ## Updated
+
 - async-redis -> ioredis
 - docker-compose files are not simpler and more composeable
 

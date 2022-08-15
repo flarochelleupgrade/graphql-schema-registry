@@ -138,10 +138,10 @@ Instead of juggling with schema status flags, we suggest the following scenario:
 ### Tech stack
 
 | Frontend (`/client` folder) | Backend (`/src` folder)           | Query analyzer (`/src/worker` folder) |
-| --------------------------- | --------------------------------- | ---- |
-| react                       | nodejs 16                         | nodejs 16 |
-| apollo client               | express, hapi/joi                 | kafka |
-| styled-components           | apollo-server-express, dataloader | 
+| --------------------------- | --------------------------------- | ------------------------------------- |
+| react                       | nodejs 16                         | nodejs 16                             |
+| apollo client               | express, hapi/joi                 | kafka                                 |
+| styled-components           | apollo-server-express, dataloader |
 |                             | redis 6                           |
 |                             | knex                              |
 |                             | mysql 8                           |

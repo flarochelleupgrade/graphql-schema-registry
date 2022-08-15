@@ -12,7 +12,7 @@ const servicesModel = {
 	getActiveServices: async function (trx: Knex<ServiceRecord>) {
 		return trx('services')
 			.select('services.id', 'services.name', 'services.url')
-			.where('is_active', true);
+			.where('is_active', 1);
 	},
 
 	getServicesByIds: async function (
@@ -25,7 +25,7 @@ const servicesModel = {
 	count: async function () {
 		return (
 			await connection('services')
-				.where('is_active', true)
+				.where('is_active', 1)
 				.count('id', { as: 'amount' })
 		)[0].amount;
 	},
@@ -38,7 +38,7 @@ const servicesModel = {
 		const service = await trx('services')
 			.select('services.id', 'services.name')
 			.where('services.name', name)
-			.andWhere('is_active', true);
+			.andWhere('is_active', 1);
 
 		return service[0];
 	},

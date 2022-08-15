@@ -45,6 +45,11 @@ const schemaModel = {
 			return [];
 		}
 
+		var nameClauses: string[] = [];
+		for (var name of names) {
+			nameClauses.push(`t3.name = '${name}'`);
+		}
+
 		const latestSchemaCandidates = await trx.raw(
 			`SELECT t1.id,
 						t1.service_id,
@@ -54,34 +59,40 @@ const schemaModel = {
 						t4.added_time,
 						t4.type_defs,
 						t4.is_active
-				 FROM \`container_schema\` as t1
+				 FROM container_schema as t1
 						  INNER JOIN (
 					 SELECT MAX(cs1.added_time) as max_added_time,
 							MAX(cs1.id)         as max_id,
 							cs1.service_id
-					 FROM \`container_schema\` cs1
-					 	INNER JOIN \`schema\` s1 on cs1.schema_id = s1.id
+					 FROM container_schema cs1
+					 	INNER JOIN schema s1 on cs1.schema_id = s1.id
 					 WHERE s1.is_active <> 0
 					 GROUP BY cs1.service_id
 				 ) as t2 ON t2.service_id = t1.service_id
-						  INNER JOIN \`services\` t3 ON t3.id = t1.service_id
-						  INNER JOIN \`schema\` t4 ON t4.id = t1.schema_id
-				 WHERE t3.name IN (?)
+						  INNER JOIN services t3 ON t3.id = t1.service_id
+						  INNER JOIN schema t4 ON t4.id = t1.schema_id
+                 WHERE ${nameClauses.join(' OR ')}
 				   AND t3.id = t2.service_id
 				   AND (
 						 t4.added_time = t2.max_added_time OR
 						 t1.id = t2.max_id
 					 )
-				   AND t4.is_active = TRUE
-				 ORDER BY t1.service_id, t1.added_time DESC, t1.id DESC`,
-			[names]
+				   AND t4.is_active = 1
+				 ORDER BY t1.service_id, t1.added_time DESC, t1.id DESC`
 		);
 
-		if (!latestSchemaCandidates || !latestSchemaCandidates.length) {
+		if (!latestSchemaCandidates) {
+			return [];
+		}
+		var schemas;
+		if (latestSchemaCandidates.rows) {
+			schemas = latestSchemaCandidates.rows;
+		} else if (latestSchemaCandidates.length) {
+			schemas = latestSchemaCandidates[0];
+		} else {
 			return [];
 		}
 
-		const schemas = latestSchemaCandidates[0];
 		const result = {};
 
 		for (const next of schemas) {
@@ -125,6 +136,8 @@ const schemaModel = {
 			'name'
 		);
 
+		logger.info(`before query: service = ${JSON.stringify(services)}`);
+
 		const schema = await trx('container_schema')
 			.select([
 				'container_schema.*',
@@ -142,6 +155,8 @@ const schemaModel = {
 						!service.version ||
 						isDevVersion(service.version);
 
+					logger.info(`SKIP ${service.name} ? ${skip}`);
+
 					query.orWhere({
 						'services.name': skip ? null : service.name,
 						'container_schema.version': skip
@@ -151,8 +166,10 @@ const schemaModel = {
 				});
 			})
 			.andWhere({
-				'services.is_active': true,
+				'services.is_active': 1,
 			});
+
+		logger.info(`after query schema = ${JSON.stringify(schema)}`);
 
 		const servicesToFallback = services.reduce((result, service) => {
 			if (!schema.find((schema) => schema.name === service.name)) {
@@ -185,7 +202,9 @@ const schemaModel = {
 
 		if (missingServices.length) {
 			logger.warn(
-				`Unable to find schema for requested services: "${missingServices}"`
+				`Unable to find schema for requested services: "${JSON.stringify(
+					missingServices
+				)}"`
 			);
 		}
 
@@ -241,6 +260,9 @@ const schemaModel = {
 				.where('id', '=', schemaId)
 				.update({ updated_time: addedTime });
 		} else {
+			logger.info(
+				`inserting schema; serviceId = ${serviceId}, type_defs = ${service.type_defs}, added_time = ${addedTime}`
+			);
 			[schemaId] = await trx('schema').insert(
 				{
 					service_id: serviceId,
@@ -248,6 +270,14 @@ const schemaModel = {
 					added_time: addedTime,
 				},
 				['id']
+			);
+			if (typeof schemaId === 'object') {
+				schemaId = schemaId.id;
+			}
+			logger.info(
+				`after insert; schemaId = ${JSON.stringify(
+					schemaId
+				)} --- typeof = ${typeof schemaId}`
 			);
 		}
 
@@ -276,6 +306,7 @@ const schemaModel = {
 					});
 			}
 		} else {
+			logger.info(`schemaId: ${schemaId}, typeof: ${typeof schemaId}`);
 			containerId = (
 				await trx('container_schema').select('id').where({
 					schema_id: schemaId,
@@ -286,7 +317,7 @@ const schemaModel = {
 		}
 
 		if (!containerId) {
-			containerId = await trx('container_schema').insert(
+			[containerId] = await trx('container_schema').insert(
 				{
 					schema_id: schemaId,
 					service_id: serviceId,
@@ -295,6 +326,9 @@ const schemaModel = {
 				},
 				['id']
 			);
+			if (typeof containerId === 'object') {
+				containerId = containerId.id;
+			}
 		}
 
 		logger.info(`Registering schema with containerId = ${containerId}`);
